@@ -96,6 +96,7 @@ namespace BnsBinTool.Xml.AliasResolvers
                     if (alias != null)
                     {
                         var @ref = refData.Get<Ref>(0);
+                        refData.Clear();
                         byRef[@ref] = alias;
                         byAlias[alias] = @ref;
                     }
