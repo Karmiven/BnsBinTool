@@ -2,10 +2,10 @@ Dumps bin to xml project, compiles xml to bin.
 Usage: bnsxml [action]
 
 Samples:
-  > bnsxml dump datafile.bin localfile.bin "D:\definitions\TableDef 0.0.123.4"
-  > bnsxml dump -output="./Output" datafile.bin localfile.bin D:\definitions\TableDef 0.0.123.4
-  > bnsxml compile ./Output "D:\definitions\TableDef 0.0.123.4"
-  > bnsxml compile -once ./Output "D:\definitions\TableDef 0.0.123.4"
+  > bnsxml dump datafile.bin localfile.bin ./TableDefs_0.0.381.8876_x86
+  > bnsxml dump datafile64.bin localfile64.bin ./TableDefs_0.0.381.8876_x64 -output="./Output" -xml="xml64.dat.files" -local="local64.dat.files" -nodef -64
+  > bnsxml compile ./Output ./TableDefs_0.0.381.8876_x86 datafile.bin localfile.bin
+  > bnsxml compile ./Output ./TableDefs_0.0.381.8876_x64 datafile64.bin localfile64.bin -xml="xml64.dat.files" -local="local64.dat.files" -64 -once
 
 Global switches:
   -nospam                   Don't include time and ram usage in log messages
@@ -14,15 +14,17 @@ Global switches:
 Available actions:
   > dump [datafile.bin path] [localfile.bin path] [definitions path]
     Switches:
+      -64                   64-bit datafiles
       -novalidate           Ignore some datafile validation errors
       -nodef                Don't prepend table definition comment in dumped xmls
-      -output=".\Output"    Changes output path
+      -output="./Output"    Changes output path
       -only="table1,table2" Dumps only specific table xmls
       -xml="path"           Path to extracted xml.dat to load aliases from
       -local="path"         Path to extracted local.dat to load aliases from
 
-  > compile [project folder] [definitions path]
+  > compile [project folder] [definitions path] [datafile.bin path] [localfile.bin path]
     Switches:
+      -64                   64-bit datafiles
       -delay=200            Changes the delay before saving
       -watchall             Compile on all file extensions instead of just *.xml
       -once                 Compile once and quit

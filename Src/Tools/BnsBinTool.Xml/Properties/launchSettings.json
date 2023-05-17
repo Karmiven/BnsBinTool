@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "BnsBinTool.Xml": {
+      "commandName": "Project",
+      "commandLineArgs": "compile C:/Users/Pig/Desktop/testoutput C:/Users/Pig/Desktop/My明文binTools/TableDefs_0.0.381.8876_x64 C:/Users/Pig/Desktop/testoutput/datafile64.bin C:/Users/Pig/Desktop/testoutput/localfile64.bin -xml=\"G:/git/bns/381-client/xml64.dat.files\" -local=\"G:/git/bns/381-client/local64.dat.files\" -64"
+    }
+  }
+}

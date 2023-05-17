@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+
 using BnsBinTool.Core;
 using BnsBinTool.Core.Definitions;
 using BnsBinTool.Core.Exceptions;
@@ -44,7 +45,9 @@ namespace BnsBinTool.Xml
 
         private const int COMPILE_PROJECT_PATH_ID = 0;
         private const int COMPILE_DEFINITIONS_PATH_ID = 1;
-        private const int COMPILE_ARG_COUNT = 2;
+        private const int COMPILE_DATAFILE_PATH_ID = 2;
+        private const int COMPILE_LOCALFILE_PATH_ID = 3;
+        private const int COMPILE_ARG_COUNT = 4;
 
         private const int TRANSFORM_PATCHES_PATH_ID = 0;
         private const int TRANSFORM_DEFINITIONS_PATH_ID = 1;
@@ -116,6 +119,7 @@ namespace BnsBinTool.Xml
                 Logger.Log($"Project root folder not found: '{projectRoot}'");
                 return 1;
             }
+            Logger.Log($"Project root: '{projectRoot}'");
 
             var definitionsPath = args[COMPILE_DEFINITIONS_PATH_ID];
             if (!Directory.Exists(definitionsPath))
@@ -123,16 +127,35 @@ namespace BnsBinTool.Xml
                 Logger.Log($"Definitions folder not found: '{definitionsPath}'");
                 return 1;
             }
+            Logger.Log($"Definitions: '{definitionsPath}'");
 
-            Logger.Log($"Project root: '{projectRoot}'");
+            var datafilePath = args[COMPILE_DATAFILE_PATH_ID];
+            if (!File.Exists(datafilePath))
+            {
+                Logger.Log($"datafile not found: '{datafilePath}'");
+                return 1;
+            }
+            Logger.Log($"datafile: '{datafilePath}'");
+
+            var localfilePath = args[COMPILE_LOCALFILE_PATH_ID];
+            if (!File.Exists(localfilePath))
+            {
+                Logger.Log($"localfile not found: '{localfilePath}'");
+                return 1;
+            }
+            Logger.Log($"localfile: '{localfilePath}'");
 
             var compileOnce = _flags.Contains("once");
+            Logger.Log($"Compile once and quit: '{compileOnce}'");
+
             var compileOnAllExtensions = _flags.Contains("watchall");
+            Logger.Log($"Compile on all file extensions instead of just *.xml: '{compileOnAllExtensions}'");
 
             if (!_flagValue.TryGetValue("delay", out var delayString) || !int.TryParse(delayString, out var delay))
                 delay = 200;
 
             delay = Math.Max(0, delay);
+            Logger.Log($"Changes the delay before saving: '{delay}'");
 
             _debounced = Debouncer.Debounce((FileSystemEventArgs e) =>
             {
@@ -140,13 +163,23 @@ namespace BnsBinTool.Xml
                 Logger.Log($"Project file change detected: {e.ChangeType} {e.Name}");
             }, TimeSpan.FromMilliseconds(delay));
 
-            _flagValue.TryGetValue("xml", out var extractedXmlDatPath);
-            _flagValue.TryGetValue("local", out var extractedLocalDatPath);
-            
+            if (_flagValue.TryGetValue("xml", out var extractedXmlDatPath))
+            {
+                Logger.Log($"Extracted XmlDat Path: '{extractedXmlDatPath}'");
+            }
+
+            if (_flagValue.TryGetValue("local", out var extractedLocalDatPath))
+            {
+                Logger.Log($"Extracted LocalDat Path: '{extractedLocalDatPath}'");
+            }
+
             var is64Bit = _flags.Contains("64");
-            
+            Logger.Log($"Is 64 bit: '{is64Bit}'");
+
+            Logger.Log($"Loading definitions...");
             var definitions = DatafileDefinition.Load(definitionsPath);
-            var xmlToDatafile = new XmlToDatafileConverter(projectRoot, definitions, extractedXmlDatPath, extractedLocalDatPath);
+
+            var xmlToDatafile = new XmlToDatafileConverter(projectRoot, definitions, datafilePath, localfilePath, extractedXmlDatPath, extractedLocalDatPath);
 
             var watcher = new FileSystemWatcher(projectRoot + "\\")
             {
@@ -198,20 +231,20 @@ namespace BnsBinTool.Xml
 
             if (!File.Exists(datafilePath))
             {
-                Console.WriteLine($"datafile.bin not found: '{datafilePath}'");
+                Logger.Log($"datafile.bin not found: '{datafilePath}'");
                 return 1;
             }
 
             if (!File.Exists(localfilePath))
             {
-                Console.WriteLine($"localfile.bin not found: '{localfilePath}'");
+                Logger.Log($"localfile.bin not found: '{localfilePath}'");
                 return 1;
             }
 
             var definitionsPath = args[DUMP_DEFINITIONS_PATH_ID];
             if (!Directory.Exists(definitionsPath))
             {
-                Console.WriteLine($"Definitions folder not found: '{definitionsPath}'");
+                Logger.Log($"Definitions folder not found: '{definitionsPath}'");
                 return 1;
             }
 
@@ -220,18 +253,33 @@ namespace BnsBinTool.Xml
                 && !_flagValue.TryGetValue("o", out outputPath))
                 outputPath = ".\\Output";
 
-            _flagValue.TryGetValue("xml", out var extractedXmlDatPath);
-            _flagValue.TryGetValue("local", out var extractedLocalDatPath);
-            var prependDefComment = !_flags.Contains("nodef");
-            
-            var noValidate = _flags.Contains("novalidate");
+            Logger.Log($"Output path: '{outputPath}'");
 
-            var definitions = DatafileDefinition.Load(definitionsPath);
-            var datafileToXml = new DatafileToXmlConverter(definitions, extractedXmlDatPath, extractedLocalDatPath, noValidate);
+            if (_flagValue.TryGetValue("xml", out var extractedXmlDatPath))
+            {
+                Logger.Log($"Extracted XmlDat Path: '{extractedXmlDatPath}'");
+            }
+            if (_flagValue.TryGetValue("local", out var extractedLocalDatPath))
+            {
+                Logger.Log($"Extracted LocalDat Path: '{extractedLocalDatPath}'");
+            }
+            var prependDefComment = !_flags.Contains("nodef");
+            Logger.Log($"Don't prepend table definition comment in dumped xmls: '{prependDefComment}'");
+
+            var noValidate = _flags.Contains("novalidate");
+            Logger.Log($"Ignore some datafile validation errors: '{noValidate}'");
 
             var is64Bit = _flags.Contains("64");
+            Logger.Log($"Is 64 bit: '{is64Bit}'");
 
+            Logger.Log($"Loading definitions...");
+            var definitions = DatafileDefinition.Load(definitionsPath, false, is64Bit);
+            var datafileToXml = new DatafileToXmlConverter(definitions, extractedXmlDatPath, extractedLocalDatPath, noValidate);
+
+            Logger.Log($"Loading datafile...");
             var data = Datafile.ReadFromFile(datafilePath, is64Bit: is64Bit);
+
+            Logger.Log($"Loading localfile...");
             var local = Datafile.ReadFromFile(localfilePath, is64Bit: is64Bit);
 
             if (_flagValue.TryGetValue("only", out var onlyTablesString))

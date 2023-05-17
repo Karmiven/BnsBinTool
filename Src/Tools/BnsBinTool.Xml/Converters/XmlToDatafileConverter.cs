@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Xml;
+
 using BnsBinTool.Core;
 using BnsBinTool.Core.DataStructs;
 using BnsBinTool.Core.Definitions;
@@ -10,6 +11,7 @@ using BnsBinTool.Core.Helpers;
 using BnsBinTool.Core.Models;
 using BnsBinTool.Xml.AliasResolvers;
 using BnsBinTool.Xml.Helpers;
+
 using K4os.Hash.xxHash;
 
 namespace BnsBinTool.Xml.Converters
@@ -18,6 +20,8 @@ namespace BnsBinTool.Xml.Converters
     {
         // Init only - READ ONLY
         private readonly DatafileDefinition _datafileDef;
+        private readonly string _datafilePath;
+        private readonly string _localfilePath;
         private readonly string _projectRoot;
         private readonly string _extractedXmlDatPath;
         private readonly string _extractedLocalDatPath;
@@ -30,14 +34,16 @@ namespace BnsBinTool.Xml.Converters
         private readonly Dictionary<string, ulong> _modifiedHashes = new Dictionary<string, ulong>();
         private readonly Dictionary<string, ulong> _hashes;
         private readonly MemoryStream _buffer = new MemoryStream();
-        
+
         // States
         private Dictionary<int, Table> _tables;
 
-        public XmlToDatafileConverter(string projectRoot, DatafileDefinition datafileDef, string extractedXmlDatPath, string extractedLocalDatPath)
+        public XmlToDatafileConverter(string projectRoot, DatafileDefinition datafileDef, string datafilePath, string localfilePath, string extractedXmlDatPath, string extractedLocalDatPath)
         {
             _projectRoot = Path.GetFullPath(projectRoot);
             _datafileDef = datafileDef;
+            _datafilePath = datafilePath;
+            _localfilePath = localfilePath;
             _extractedXmlDatPath = extractedXmlDatPath;
             _extractedLocalDatPath = extractedLocalDatPath;
 
@@ -61,24 +67,21 @@ namespace BnsBinTool.Xml.Converters
             Logger.StartTimer();
 
             // Load datafiles
-            var datafilePath = $"{_projectRoot}\\datafile.bin";
-            var localfilePath = $"{_projectRoot}\\localfile.bin";
-
             if (_data == null)
             {
-                _data = Datafile.ReadFromFile(datafilePath, false, is64Bit);
-                Logger.LogTime($"Loaded {datafilePath}");
+                _data = Datafile.ReadFromFile(_datafilePath, false, is64Bit);
+                Logger.LogTime($"Loaded {_datafilePath}");
             }
 
             if (_local == null)
             {
-                _local = Datafile.ReadFromFile(localfilePath, false, is64Bit);
-                Logger.LogTime($"Loaded {localfilePath}");
+                _local = Datafile.ReadFromFile(_localfilePath, false, is64Bit);
+                Logger.LogTime($"Loaded {_localfilePath}");
             }
 
             _tables = _data.Tables
                 .Concat(_local.Tables)
-                .ToDictionary(x => (int) x.Type);
+                .ToDictionary(x => (int)x.Type);
 
             // Get modified tables
             var modifiedTables = GetModifiedTables();
@@ -113,7 +116,7 @@ namespace BnsBinTool.Xml.Converters
                 ProcessTable(modifiedTable);
                 Logger.LogTime($"Processed table: {modifiedTable.Name}");
             }
-            
+
             // Rebuild alias map
             Logger.LogTime("Rebuilding alias map");
             var rebuilder = _data.NameTable
@@ -145,17 +148,19 @@ namespace BnsBinTool.Xml.Converters
             Logger.LogTime("Rebuilt alias map");
 
             // Save modified datafiles
-            _data.WriteToFile(datafilePath);
-            Logger.LogTime($"Saved {datafilePath}");
+            _data.WriteToFile(_datafilePath);
+            Logger.LogTime($"Saved {_datafilePath}");
 
-            _local.WriteToFile(localfilePath);
-            Logger.LogTime($"Saved {localfilePath}");
+            _local.WriteToFile(_localfilePath);
+            Logger.LogTime($"Saved {_localfilePath}");
 
             // Save hashes
+            Logger.LogTime("Saving hashes...");
             SaveHashes();
-            Logger.LogTime("Saved hashes");
 
             Logger.StopTimer();
+
+            Logger.LogTime("Done.");
         }
 
         private void ProcessTable(TableDefinition tableDef)
@@ -173,7 +178,7 @@ namespace BnsBinTool.Xml.Converters
             {
                 var filePath = $"tables\\{relativePath}.xml";
                 var fullFilePath = $"{_projectRoot}\\{filePath}";
-                
+
                 if (!File.Exists(fullFilePath))
                     continue;
 
@@ -192,7 +197,7 @@ namespace BnsBinTool.Xml.Converters
                         case XmlNodeType.Element:
                             ConvertRecord(table, xmlReader, tableDef);
                             continue;
-                        
+
                         case XmlNodeType.Comment:
                             continue;
                     }
@@ -211,7 +216,7 @@ namespace BnsBinTool.Xml.Converters
                 $"{tableDef.Name}",
                 $"{tableDef.Name}\\base_{tableDef.Name}"
             };
-            
+
             pathsToCheck.AddRange(tableDef.Subtables.Select(subDef => $"{tableDef.Name}\\{subDef.Name}"));
 
             return pathsToCheck;
@@ -224,7 +229,7 @@ namespace BnsBinTool.Xml.Converters
             // Create record
             var subtableName = reader.GetAttribute("type");
             var def = subtableName == null
-                ? (ITableDefinition) tableDef
+                ? (ITableDefinition)tableDef
                 : tableDef.SubtableByName(subtableName);
 
             var record = def.CreateDefaultRecord(_recordBuilder.StringLookup, out var defaultStringAttrsWithValue);
@@ -241,7 +246,7 @@ namespace BnsBinTool.Xml.Converters
                 {
                     if (reader.Name == "type")
                         continue;
-                    
+
                     var attrDef = def.ExpandedAttributeByName(reader.Name);
 
                     if (attrDef != null)
@@ -292,7 +297,7 @@ namespace BnsBinTool.Xml.Converters
                     fileStream.CopyTo(_buffer);
 
                     // Hash the xml file
-                    Span<byte> data = _buffer.GetBuffer()[..(int) _buffer.Length];
+                    Span<byte> data = _buffer.GetBuffer()[..(int)_buffer.Length];
                     var hash = XXH64.DigestOf(data);
 
                     // Check if hash changed
@@ -313,7 +318,7 @@ namespace BnsBinTool.Xml.Converters
                 _hashes[key] = hash;
 
             File.WriteAllLines(_projectRoot + "\\hashes.txt",
-                _hashes.Select(x => $"{x.Key}={x.Value}"));
+                _hashes.OrderBy(x => x.Key).Select(x => $"{x.Key}={x.Value}"));
 
             _modifiedHashes.Clear();
         }

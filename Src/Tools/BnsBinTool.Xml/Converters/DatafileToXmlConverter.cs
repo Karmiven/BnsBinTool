@@ -6,12 +6,14 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
+
 using BnsBinTool.Core;
 using BnsBinTool.Core.DataStructs;
 using BnsBinTool.Core.Definitions;
 using BnsBinTool.Core.Helpers;
 using BnsBinTool.Core.Models;
 using BnsBinTool.Xml.AliasResolvers;
+
 using K4os.Hash.xxHash;
 
 namespace BnsBinTool.Xml.Converters
@@ -44,9 +46,6 @@ namespace BnsBinTool.Xml.Converters
 
             Directory.CreateDirectory(_outputPath + "\\tables");
 
-            data.WriteToFile(_outputPath + "\\datafile.bin");
-            local.WriteToFile(_outputPath + "\\localfile.bin");
-
             var tables = data.Tables.Concat(local.Tables).ToArray();
 
             _tablesAliases = DatafileAliasResolver.Resolve(tables, _datafileDef);
@@ -60,9 +59,13 @@ namespace BnsBinTool.Xml.Converters
                     .ToArray();
             }
 
+            Logger.Log($"Writing tables...");
             Parallel.ForEach(tables, ProcessTable);
 
+            Logger.Log($"Writing hashes...");
             SaveHashes();
+
+            Logger.Log($"Done.");
         }
 
         private void SaveHashes()
@@ -70,7 +73,7 @@ namespace BnsBinTool.Xml.Converters
             lock (_fileHashesLocker)
             {
                 File.WriteAllLines(_outputPath + "\\hashes.txt",
-                    _fileHashes.Select(x => $"{x.Key}={x.Value}"));
+                    _fileHashes.OrderBy(x => x.Key).Select(x => $"{x.Key}={x.Value}"));
             }
         }
 
@@ -101,7 +104,7 @@ namespace BnsBinTool.Xml.Converters
             {
                 var memory = new MemoryStream();
 
-                using var writer = new XmlTextWriter(memory, Encoding.Unicode)
+                using var writer = new XmlTextWriter(memory, new UTF8Encoding(false))
                 {
                     Formatting = Formatting.Indented,
                     Indentation = 4
@@ -121,7 +124,7 @@ namespace BnsBinTool.Xml.Converters
 
                 writer.Flush();
 
-                Span<byte> data = memory.GetBuffer()[..(int) memory.Length];
+                Span<byte> data = memory.GetBuffer()[..(int)memory.Length];
 
                 var name = tableDef.Name;
 
@@ -154,6 +157,7 @@ namespace BnsBinTool.Xml.Converters
             if (_writeDefsComment)
                 WriteDefsComment(writer, tableDef, subtableDef);
             writer.WriteStartElement("table");
+            writer.WriteAttributeString("type", tableDef.Name);
 
             if (subtableDef.SubclassType >= 0)
             {
@@ -185,7 +189,7 @@ namespace BnsBinTool.Xml.Converters
             {
                 if (_noValidate && attribute.Offset >= record.DataSize)
                     continue;
-                
+
                 string value;
 
                 switch (attribute.Type)
@@ -294,7 +298,7 @@ namespace BnsBinTool.Xml.Converters
                         break;
 
                     case AttributeType.TInt8:
-                        var b = (sbyte) record.Data[attribute.Offset];
+                        var b = (sbyte)record.Data[attribute.Offset];
 
                         if (b == attribute.AttributeDefaultValues.DByte)
                             continue;
@@ -331,47 +335,47 @@ namespace BnsBinTool.Xml.Converters
 
                     case AttributeType.TSeq:
                     case AttributeType.TProp_seq:
-                    {
-                        var idx = record.Get<sbyte>(attribute.Offset);
-                        if (idx < attribute.Sequence.Count)
                         {
-                            var seq = attribute.Sequence[idx];
+                            var idx = record.Get<sbyte>(attribute.Offset);
+                            if (idx < attribute.Sequence.Count)
+                            {
+                                var seq = attribute.Sequence[idx];
 
-                            if (seq == attribute.AttributeDefaultValues.DSeq)
-                                continue;
+                                if (seq == attribute.AttributeDefaultValues.DSeq)
+                                    continue;
 
-                            value = seq;
+                                value = seq;
+                            }
+                            else
+                            {
+                                value = "";
+                                if (!_noValidate) ThrowHelper.ThrowException("Invalid sequence index");
+                            }
+
+                            break;
                         }
-                        else
-                        {
-                            value = "";
-                            if (!_noValidate) ThrowHelper.ThrowException("Invalid sequence index");
-                        }
-
-                        break;
-                    }
 
                     case AttributeType.TSeq16:
                     case AttributeType.TProp_field:
-                    {
-                        var idx = record.Get<short>(attribute.Offset);
-                        if (idx < attribute.Sequence.Count)
                         {
-                            var seq = attribute.Sequence[idx];
+                            var idx = record.Get<short>(attribute.Offset);
+                            if (idx < attribute.Sequence.Count)
+                            {
+                                var seq = attribute.Sequence[idx];
 
-                            if (seq == attribute.AttributeDefaultValues.DSeq)
-                                continue;
+                                if (seq == attribute.AttributeDefaultValues.DSeq)
+                                    continue;
 
-                            value = seq;
+                                value = seq;
+                            }
+                            else
+                            {
+                                value = "";
+                                if (!_noValidate) ThrowHelper.ThrowException("Invalid sequence index");
+                            }
+
+                            break;
                         }
-                        else
-                        {
-                            value = "";
-                            if (!_noValidate) ThrowHelper.ThrowException("Invalid sequence index");
-                        }
-
-                        break;
-                    }
 
                     case AttributeType.TScript_obj:
                         var scriptObjBytes = record.Data[
@@ -431,7 +435,7 @@ namespace BnsBinTool.Xml.Converters
             cmt.AppendLine("");
             cmt.AppendLine($"# Table {mainTableDef.Name} definition");
 
-            foreach (var tableDef in new[] {mainTableDef, subtableDef})
+            foreach (var tableDef in new[] { mainTableDef, subtableDef })
             {
                 foreach (var attrDef in tableDef.Attributes)
                 {
