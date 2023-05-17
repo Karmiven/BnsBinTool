@@ -49,11 +49,11 @@ namespace BnsBinTool.Xml.Converters
 
             if (File.Exists($"{_projectRoot}\\hashes.txt"))
             {
+                Logger.Log("Loadeing hashes...");
                 _hashes = File.ReadAllLines($"{_projectRoot}\\hashes.txt")
                     .Where(x => !string.IsNullOrWhiteSpace(x) && x.IndexOf('=') > 0)
                     .Select(x => x.Split('=', 2))
                     .ToDictionary(x => x[0], x => ulong.Parse(x[1]));
-                Logger.Log("Loaded hashes");
             }
             else
             {
@@ -64,19 +64,17 @@ namespace BnsBinTool.Xml.Converters
 
         public void ConvertXmlsToDatafile(bool is64Bit)
         {
-            Logger.StartTimer();
-
             // Load datafiles
             if (_data == null)
             {
+                Logger.Log($"Loading datafile: '{_datafilePath}'");
                 _data = Datafile.ReadFromFile(_datafilePath, false, is64Bit);
-                Logger.LogTime($"Loaded {_datafilePath}");
             }
 
             if (_local == null)
             {
+                Logger.Log($"Loadeing localfile: '{_localfilePath}'");
                 _local = Datafile.ReadFromFile(_localfilePath, false, is64Bit);
-                Logger.LogTime($"Loaded {_localfilePath}");
             }
 
             _tables = _data.Tables
@@ -88,24 +86,22 @@ namespace BnsBinTool.Xml.Converters
 
             if (modifiedTables.Count == 0)
             {
-                Logger.LogTime("No modified tables found");
+                Logger.Log("No modified tables found");
                 return;
             }
 
-            Logger.LogTime("Found modified tables: " + string.Join(", ", modifiedTables.Select(x => x.Name)));
+            Logger.Log("Found modified tables: " + string.Join(", ", modifiedTables.Select(x => x.Name)));
 
             // Resolve aliases
             if (_resolvedAliases == null)
             {
+                Logger.Log("Resolving datafile aliases...");
                 _resolvedAliases = DatafileAliasResolver.Resolve(_tables.Values, _datafileDef);
-
-                Logger.LogTime("Resolved datafile aliases");
             }
 
             // Resolve modified aliases
+            Logger.Log("Resolving modified xml aliases...");
             ResolveModifiedAliases(modifiedTables);
-
-            Logger.LogTime("Resolved modified xml aliases");
 
             // Create record builder if it doesn't exist
             _recordBuilder ??= new RecordBuilder(_datafileDef, _resolvedAliases);
@@ -113,14 +109,13 @@ namespace BnsBinTool.Xml.Converters
             // Process modified tables
             foreach (var modifiedTable in modifiedTables)
             {
+                Logger.Log($"Processing table: {modifiedTable.Name}");
                 ProcessTable(modifiedTable);
-                Logger.LogTime($"Processed table: {modifiedTable.Name}");
             }
 
             // Rebuild alias map
-            Logger.LogTime("Rebuilding alias map");
-            var rebuilder = _data.NameTable
-                .BeginRebuilding();
+            Logger.Log("Rebuilding alias map");
+            var rebuilder = _data.NameTable.BeginRebuilding();
 
             foreach (var table in _tables.Values)
             {
@@ -145,22 +140,20 @@ namespace BnsBinTool.Xml.Converters
             XmlRecordsHelper.LoadAliasesToRebuilder(rebuilder, _extractedXmlDatPath, _extractedLocalDatPath);
 
             rebuilder.EndRebuilding();
-            Logger.LogTime("Rebuilt alias map");
+            Logger.Log("Rebuilt alias map");
 
             // Save modified datafiles
+            Logger.Log($"Saving {_datafilePath}");
             _data.WriteToFile(_datafilePath);
-            Logger.LogTime($"Saved {_datafilePath}");
 
+            Logger.Log($"Saving {_localfilePath}");
             _local.WriteToFile(_localfilePath);
-            Logger.LogTime($"Saved {_localfilePath}");
 
             // Save hashes
-            Logger.LogTime("Saving hashes...");
+            Logger.Log("Saving hashes...");
             SaveHashes();
 
-            Logger.StopTimer();
-
-            Logger.LogTime("Done.");
+            Logger.Log("Done.");
         }
 
         private void ProcessTable(TableDefinition tableDef)
