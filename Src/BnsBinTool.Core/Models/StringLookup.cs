@@ -31,7 +31,7 @@ namespace BnsBinTool.Core.Models
         {
             str ??= "";
             
-            var strBytes = Encoding.Unicode.GetBytes(str + "\0");
+            var strBytes = Encoding.UTF8.GetBytes(str + "\0");
 
             if (Data == null)
                 ThrowHelper.ThrowInvalidOperationException("Attempted to append string on null string lookup data");

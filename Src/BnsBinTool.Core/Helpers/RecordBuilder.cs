@@ -42,7 +42,7 @@ namespace BnsBinTool.Core.Helpers
                 _stringBuilder.Clear();
                 _existingStringOffset.Clear();
 
-                _stringBuilder.Append("\0");
+                _stringBuilder.Append('\0');
                 _existingStringOffset[""] = 0;
             }
             else
@@ -52,7 +52,7 @@ namespace BnsBinTool.Core.Helpers
                 _stringBuilder.Clear();
                 _existingStringOffset.Clear();
 
-                var data = Encoding.Unicode.GetString(loadStringLookup.Data);
+                var data = Encoding.UTF8.GetString(loadStringLookup.Data);
 
                 if (data.Length * 2 != loadStringLookup.Data.Length)
                     ThrowHelper.ThrowException("Invalid loaded lookup length");
@@ -70,7 +70,7 @@ namespace BnsBinTool.Core.Helpers
                 StringLookup = new StringLookup();
 
                 _stringBuilder.Clear();
-                _stringBuilder.Append("\0");
+                _stringBuilder.Append('\0');
                 _existingStringOffset.Clear();
                 _existingStringOffset[""] = 0;
             }
@@ -86,7 +86,7 @@ namespace BnsBinTool.Core.Helpers
                 _stringBuilder.Clear();
                 _existingStringOffset.Clear();
 
-                var data = Encoding.Unicode.GetString(stringLookup.Data);
+                var data = Encoding.UTF8.GetString(stringLookup.Data);
 
                 if (data.Length * 2 != stringLookup.Data.Length)
                     ThrowHelper.ThrowException("Invalid loaded lookup length");
@@ -211,7 +211,7 @@ namespace BnsBinTool.Core.Helpers
             if (_isCompressed)
             {
                 // Per record
-                StringLookup.Data = Encoding.Unicode.GetBytes(_stringBuilder.ToString());
+                StringLookup.Data = Encoding.UTF8.GetBytes(_stringBuilder.ToString());
             }
         }
 
@@ -220,7 +220,7 @@ namespace BnsBinTool.Core.Helpers
             if (_isCompressed)
             {
                 // Per record
-                StringLookup.Data = Encoding.Unicode.GetBytes(_stringBuilder.ToString());
+                StringLookup.Data = Encoding.UTF8.GetBytes(_stringBuilder.ToString());
             }
         }
 
@@ -230,7 +230,7 @@ namespace BnsBinTool.Core.Helpers
                 return;
 
             // Per table
-            StringLookup.Data = Encoding.Unicode.GetBytes(_stringBuilder.ToString());
+            StringLookup.Data = Encoding.UTF8.GetBytes(_stringBuilder.ToString());
         }
 
         private static void SetBox(Record record, AttributeDefinition attrDef, string value)

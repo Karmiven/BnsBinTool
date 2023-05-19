@@ -346,7 +346,7 @@ namespace BnsBinTool.Xml.Converters
                 builder.Append('\0');
                 record.Set(_textAliasAttrDef.Offset, 0);
                 record.Set(_textAttrDef.Offset, new Native((text.Length << 1) + 2, offset));
-                record.StringLookup.Data = Encoding.Unicode.GetBytes(builder.ToString());
+                record.StringLookup.Data = Encoding.UTF8.GetBytes(builder.ToString());
             }
             else
             {
@@ -429,7 +429,7 @@ namespace BnsBinTool.Xml.Converters
 
                                 textRecord.Set(_textAliasAttrDef.Offset, 0);
                                 textRecord.Set(_textAttrDef.Offset, new Native((text.Length << 1) + 2, offset));
-                                textRecord.StringLookup.Data = Encoding.Unicode.GetBytes(builder.ToString());
+                                textRecord.StringLookup.Data = Encoding.UTF8.GetBytes(builder.ToString());
                             }
                             else
                             {

@@ -23,7 +23,7 @@ namespace BnsBinTool.StringDumper
             {
                 var bytes = File.ReadAllBytes(file);
 
-                var strings = Encoding.Unicode.GetString(bytes).Split('\0', StringSplitOptions.RemoveEmptyEntries);
+                var strings = Encoding.UTF8.GetString(bytes).Split('\0', StringSplitOptions.RemoveEmptyEntries);
 
                 if (strings.Length == 0)
                     continue;
